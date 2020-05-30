@@ -51,10 +51,10 @@ GPUArrays.griddim(ctx::CuKernelContext) = CUDA.gridDim().x
 
 # math
 
-@inline GPUArrays.cos(ctx::CuKernelContext) = CUDA.cos(x)
-@inline GPUArrays.sin(ctx::CuKernelContext) = CUDA.sin(x)
-@inline GPUArrays.sqrt(ctx::CuKernelContext) = CUDA.sqrt(x)
-@inline GPUArrays.log(ctx::CuKernelContext) = CUDA.log(x)
+@inline GPUArrays.cos(ctx::CuKernelContext, x) = CUDA.cos(x)
+@inline GPUArrays.sin(ctx::CuKernelContext, x) = CUDA.sin(x)
+@inline GPUArrays.sqrt(ctx::CuKernelContext, x) = CUDA.sqrt(x)
+@inline GPUArrays.log(ctx::CuKernelContext, x) = CUDA.log(x)
 
 # memory
 
