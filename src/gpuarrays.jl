@@ -56,7 +56,6 @@ GPUArrays.griddim(ctx::CuKernelContext) = CUDA.gridDim().x
 @inline GPUArrays.sqrt(ctx::CuKernelContext) = CUDA.sqrt(x)
 @inline GPUArrays.log(ctx::CuKernelContext) = CUDA.log(x)
 
-
 # memory
 
 @inline function GPUArrays.LocalMemory(::CuKernelContext, ::Type{T}, ::Val{dims}, ::Val{id}
