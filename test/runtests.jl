@@ -99,7 +99,7 @@ end
 
 # check that CI is using the requested toolkit
 toolkit_release = CUDA.toolkit_release() # ensure artifacts are downloaded
-if haskey(ENV, "CI") && haskey(ENV, "JULIA_CUDA_VERSION")
+if parse(Bool, get(ENV, "CI", "false")) && haskey(ENV, "JULIA_CUDA_VERSION")
   @test toolkit_release == VersionNumber(ENV["JULIA_CUDA_VERSION"])
 end
 
@@ -124,7 +124,7 @@ else
 end
 pick = last(candidates)
 pick.cap >= v"2.0" || error("The CUDA.jl test suite requires a CUDA device with compute capability 2.0 or higher")
-@info("Testing using device $(name(pick.dev)) (compute capability $(pick.cap), $(Base.format_bytes(pick.mem)) available memory) on CUDA driver $(CUDA.version()) and toolkit $(CUDA.version())")
+@info("Testing using device $(name(pick.dev)) (compute capability $(pick.cap), $(Base.format_bytes(pick.mem)) available memory) on CUDA driver $(CUDA.version()) and toolkit $(CUDA.toolkit_version())")
 
 # determine tests to skip
 const skip_tests = []
@@ -140,6 +140,10 @@ if do_memcheck
     # CUFFT causes internal failures in cuda-memcheck
     push!(skip_tests, "cufft")
     # there's also a bunch of `memcheck || ...` expressions in the tests themselves
+end
+if Sys.ARCH == :aarch64
+    # CUFFT segfaults on ARM
+    push!(skip_tests, "cufft")
 end
 if haskey(ENV, "CI_THOROUGH")
     # we're not allowed to skip tests, so make sure we will mark them as such

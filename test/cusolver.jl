@@ -426,4 +426,133 @@ k = 1
         @test Array(h_r) ≈ Array(r)
     end
 
+    @testset "potrsBatched!" begin
+        @testset "elty = $elty" for elty in [Float32, Float64, ComplexF32, ComplexF64]
+            # Test lower
+            bA = [rand(elty, m, m) for i in 1:n]
+            bA = [bA[i]*bA[i]' for i in 1:n]
+            bB = [rand(elty, m) for i in 1:n]
+
+            # move to device
+            bd_A = CuArray{elty, 2}[]
+            bd_B = CuArray{elty, 1}[]
+            for i in 1:length(bA)
+                push!(bd_A, CuArray(bA[i]))
+                push!(bd_B, CuArray(bB[i]))
+            end
+
+            bd_X = CUSOLVER.potrsBatched!('L', bd_A, bd_B)
+            bh_X = [collect(bd_X[i]) for i in 1:n]
+
+            for i = 1:n
+                LinearAlgebra.LAPACK.potrs!('L', bA[i], bB[i])
+                @test bB[i] ≈ bh_X[i]
+            end
+
+            # Test upper
+            bA = [rand(elty, m, m) for i in 1:n]
+            bA = [bA[i]*bA[i]' for i in 1:n]
+            bB = [rand(elty, m) for i in 1:n]
+
+            # move to device
+            bd_A = CuArray{elty, 2}[]
+            bd_B = CuArray{elty, 1}[]
+            for i in 1:length(bA)
+                push!(bd_A, CuArray(bA[i]))
+                push!(bd_B, CuArray(bB[i]))
+            end
+
+            bd_X = CUSOLVER.potrsBatched!('U', bd_A, bd_B)
+            bh_X = [collect(bd_X[i]) for i in 1:n]
+
+            for i = 1:n
+                LinearAlgebra.LAPACK.potrs!('U', bA[i], bB[i])
+                @test bB[i] ≈ bh_X[i]
+            end
+            # error throwing tests
+            bA = [rand(elty, m, m) for i in 1:n]
+            bA = [bA[i]*bA[i]' for i in 1:n]
+            bB = [rand(elty, m) for i in 1:n+1]
+
+            # move to device
+            bd_A = CuArray{elty, 2}[]
+            bd_B = CuArray{elty, 1}[]
+            for i in 1:length(bA)
+                push!(bd_A, CuArray(bA[i]))
+                push!(bd_B, CuArray(bB[i]))
+            end
+            push!(bd_B, CuArray(bB[end]))
+
+            @test_throws DimensionMismatch CUSOLVER.potrsBatched!('L', bd_A, bd_B)
+            
+            bA = [rand(elty, m, m) for i in 1:n]
+            bA = [bA[i]*bA[i]' for i in 1:n]
+            bB = [rand(elty, m) for i in 1:n]
+            bB[1] = rand(elty, m+1)
+            # move to device
+            bd_A = CuArray{elty, 2}[]
+            bd_B = CuArray{elty, 1}[]
+            for i in 1:length(bA)
+                push!(bd_A, CuArray(bA[i]))
+                push!(bd_B, CuArray(bB[i]))
+            end
+
+            @test_throws DimensionMismatch CUSOLVER.potrsBatched!('L', bd_A, bd_B)
+            
+            bA = [rand(elty, m, m) for i in 1:n]
+            bA = [bA[i]*bA[i]' for i in 1:n]
+            bB = [rand(elty, m, m) for i in 1:n]
+            # move to device
+            bd_A = CuArray{elty, 2}[]
+            bd_B = CuArray{elty, 2}[]
+            for i in 1:length(bA)
+                push!(bd_A, CuArray(bA[i]))
+                push!(bd_B, CuArray(bB[i]))
+            end
+
+            @test_throws ArgumentError CUSOLVER.potrsBatched!('L', bd_A, bd_B)
+        end
+    end
+
+    @testset "potrfBatched!" begin
+        @testset "elty = $elty" for elty in [Float32, Float64, ComplexF32, ComplexF64]
+            # Test lower
+            bA = [rand(elty, m, m) for i in 1:n]
+            bA = [bA[i]*bA[i]' for i in 1:n]
+
+            # move to device
+            bd_A = CuArray{elty, 2}[]
+            for i in 1:length(bA)
+                push!(bd_A, CuArray(bA[i]))
+            end
+
+            bd_A, info = CUSOLVER.potrfBatched!('L', bd_A)
+            bh_A = [collect(bd_A[i]) for i in 1:n]
+
+            for i = 1:n
+                LinearAlgebra.LAPACK.potrf!('L', bA[i])
+                @test bA[i] ≈ bh_A[i]
+            end
+
+            # Test upper
+            bA = [rand(elty, m, m) for i in 1:n]
+            bA = [bA[i]*bA[i]' for i in 1:n]
+
+            # move to device
+            bd_A = CuArray{elty, 2}[]
+            for i in 1:length(bA)
+                push!(bd_A, CuArray(bA[i]))
+            end
+
+            bd_A, info = CUSOLVER.potrfBatched!('U', bd_A)
+            bh_A = [collect(bd_A[i]) for i in 1:n]
+
+            for i = 1:n
+                LinearAlgebra.LAPACK.potrf!('U', bA[i])
+                # cuSOLVER seems to return symmetric/hermitian matrix when using 'U'
+                @test Hermitian(bA[i]) ≈ bh_A[i]
+            end
+        end
+    end
+
 end

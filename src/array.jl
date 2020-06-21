@@ -78,15 +78,25 @@ Base.parent(A::CuArray{<:Any,<:Any,Nothing})     = A
 Base.parent(A::CuArray{<:Any,<:Any,P}) where {P} = A.parent
 
 Base.dataids(A::CuArray{<:Any,<:Any,Nothing})     = (UInt(pointer(A)),)
-Base.dataids(A::CuArray{<:Any,<:Any,P}) where {P} = (Base.dataids(A.parent)..., UInt(pointer(A)),)
-
-# TODO: implement array alias detection from https://github.com/JuliaLang/julia/pull/25890
+Base.dataids(A::CuArray{<:Any,<:Any,P}) where {P} = (Base.dataids(parent(A))..., UInt(pointer(A)),)
 
 Base.unaliascopy(A::CuArray{<:Any,<:Any,Nothing}) = copy(A)
 function Base.unaliascopy(A::CuArray{<:Any,<:Any,P}) where {P}
   offset = pointer(A) - pointer(A.parent)
   new_parent = Base.unaliascopy(A.parent)
   typeof(A)(pointer(new_parent) + offset, A.dims, new_parent, A.pooled, A.ctx)
+end
+
+# optimized alias detection for views
+function Base.mightalias(A::CuArray, B::CuArray)
+    if parent(A) !== parent(B)
+        # We cannot do any better than the usual dataids check
+        return invoke(Base.mightalias, Tuple{AbstractArray, AbstractArray}, A, B)
+    end
+
+    rA = pointer(A):pointer(A)+sizeof(A)
+    rB = pointer(B):pointer(B)+sizeof(B)
+    return first(rA) <= first(rB) < last(rA) || first(rB) <= first(rA) < last(rB)
 end
 
 
@@ -135,10 +145,15 @@ for (ctor, tvars) in (:CuArray => (), :(CuArray{T}) => (:T,), :(CuArray{T,N}) =>
   end
 end
 
-
 Base.similar(a::CuArray{T,N}) where {T,N} = CuArray{T,N}(undef, size(a))
 Base.similar(a::CuArray{T}, dims::Base.Dims{N}) where {T,N} = CuArray{T,N}(undef, dims)
 Base.similar(a::CuArray, ::Type{T}, dims::Base.Dims{N}) where {T,N} = CuArray{T,N}(undef, dims)
+
+function Base.copy(a::CuArray{T,N}) where {T,N}
+  ptr = convert(CuPtr{T}, alloc(sizeof(a)))
+  unsafe_copyto!(ptr, pointer(a), length(a))
+  CuArray{T,N}(ptr, size(a))
+end
 
 
 """
@@ -189,14 +204,11 @@ Base.pointer(x::CuArray, i::Integer) = x.ptr + (i-1) * Base.elsize(x)
 
 ## interop with other arrays
 
-@inline function CuArray{T,N}(xs::AbstractArray{T,N}) where {T,N}
+@inline function CuArray{T,N}(xs::AbstractArray{<:Any,N}) where {T,N}
   A = CuArray{T,N}(undef, size(xs))
-  copyto!(A, xs)
+  copyto!(A, convert(Array{T}, xs))
   return A
 end
-
-# FIXME: `map(T, xs)`, https://github.com/FluxML/Flux.jl/issues/958
-CuArray{T,N}(xs::AbstractArray{S,N}) where {T,N,S} = CuArray{T,N}((x -> T(x)).(xs))
 
 # underspecified constructors
 CuArray{T}(xs::AbstractArray{S,N}) where {T,N,S} = CuArray{T,N}(xs)

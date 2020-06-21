@@ -9,14 +9,14 @@ import Libdl
 const __toolkit_version = Ref{VersionNumber}()
 
 """
-    version()
+    toolkit_version()
 
 Returns the version of the CUDA toolkit in use.
 """
 toolkit_version() = @after_init(__toolkit_version[])
 
 """
-    release()
+    toolkit_release()
 
 Returns the CUDA release part of the version as returned by [`version`](@ref).
 """
@@ -291,7 +291,12 @@ end
 function __init_dependencies__()
     found = false
 
-    if parse(Bool, get(ENV, "JULIA_CUDA_USE_BINARYBUILDER", "true"))
+    # CI runs in a well-defined environment, so prefer a local CUDA installation there
+    if parse(Bool, get(ENV, "CI", "false")) && !haskey(ENV, "JULIA_CUDA_USE_BINARYBUILDER")
+        found = use_local_cuda()
+    end
+
+    if !found && parse(Bool, get(ENV, "JULIA_CUDA_USE_BINARYBUILDER", "true"))
         found = use_artifact_cuda()
     end
 
