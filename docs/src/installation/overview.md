@@ -6,8 +6,6 @@ toolkit](https://developer.nvidia.com/cuda-downloads). The former should be inst
 or your system administrator, while the latter can be automatically downloaded by Julia
 using the artifact subsystem.
 
-
-
 ## Platform support
 
 All three major operation systems are supported: Linux, Windows and macOS. However, that
@@ -18,7 +16,6 @@ Similarly, we support x86, ARM, PPC, ... as long as Julia is supported on it and
 exists an NVIDIA driver and CUDA toolkit for your platform. The main development platform
 (and the only CI system) however is x86_64 on Linux, so if you are using a more exotic
 combination there might be bugs.
-
 
 
 ## NVIDIA driver
@@ -105,6 +102,26 @@ To troubleshoot discovery of a local CUDA installation, you can set `JULIA_DEBUG
 see the various paths where CUDA.jl looks. By setting any of the `CUDA_HOME`, `CUDA_ROOT` or
 `CUDA_PATH` environment variables, you can guide the package to a specific directory.
 
+
+
+## Package Installation
+After you have installed CUDA on your system, installing the package is as simple as the following:
+```julia
+using Pkg
+Pkg.add("CUDA")
+```
+
+You will want to test it:
+```julia
+Pkg.test("CUDA")
+```
+
+If you want to run the latest master, you will also want to install the master version of several dependencies:
+```julia
+Pkg.add("CUDA#master")
+Pkg.add("GPUCompiler#master")
+Pkg.add("GPUArrays#master")
+```
 
 
 ## Containers
